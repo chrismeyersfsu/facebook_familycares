@@ -1,0 +1,242 @@
+<html>
+<head>
+<div id="fb-root"></div>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+<script src="fbutil.js" type="text/javascript"></script>
+<script src="family_cares_fb.js" type="text/javascript"></script>
+
+<link rel="stylesheet" type="text/css" href="my.css" />
+
+<script>
+    var gConf = [];
+    gConf['baseUrl'] = "http://"+document.location.hostname
+    if (document.location.port) {
+        gConf['baseUrl'] += ":"+document.location.port
+    }
+
+    /*************************************************************************
+     * GROUP SECTION
+     *************************************************************************/
+    function ui_set_group_data(groupDOM, groupData) {
+        $(groupDOM).data('group', groupData);
+    }
+
+    function ui_get_group_data(groupDOM) {
+        return $(groupDOM).data('group');
+    }
+
+    function ui_set_group_click(groupDOM, callback) {
+        var groupData = ui_get_group_data(groupDOM);
+        var groupId = 'group-'+groupData['id'];
+        $('#'+groupId).bind('click', callback);
+    }
+
+
+    /**
+    * When a group is clicked, load the members of that group
+    * and get the associated member images
+    */
+    function ui_click_group(event) {
+        var groupData = $(this).data('group');
+        /* Get all member for a given group */
+        $('#memberContainer').html('');
+        FC.request_group_members(groupData['id'], function(members) {
+            $.each(members, function(index, member) {
+                FC.request_member_picture(member['id'], function(pictureUrl) {
+                    console.log("Member image url ["+JSON.stringify(pictureUrl)+"]");
+                    member['picture'] = pictureUrl['data']['url'];
+                    ui_instantiate_member(member);
+                });
+            });
+        });
+
+    }
+
+    function ui_instantiate_group(groupData) {
+        var groupDOM;
+        var groupId = 'group-'+groupData['id'];
+        $('#groupContainer').append('<div id="'+groupId+'">'+groupData['name']+'</div>');
+        groupDOM = $('#'+groupId);
+        ui_set_group_data(groupDOM, groupData);
+        ui_set_group_click(groupDOM, ui_click_group);
+
+        // instantiate picture if it exits
+        if ('picture' in groupData) {
+            console.log("ui_instantiate_group() group picture ["+groupData['picture']+"]");
+            ui_update_group_picture(groupDOM, groupData['picture']['data']['url']);
+        }
+
+        return groupDOM;
+    }
+    
+    function ui_find_or_instantiate_group_picture(groupDOM) {
+        var groupData = $(groupDOM).data('group');
+        var imgDOMArray = $(groupDOM).find('img');
+        var imgDOM;
+        if ($(imgDOMArray).length == 0) {
+            $(groupDOM).prepend('<img src="">');
+            imgDOMArray = $(groupDOM).find('img');
+        }
+        imgDOM = imgDOMArray.first();
+        return imgDOM;
+    }
+    /**
+     * Potentially, instantiate IMG
+     */
+    function ui_update_group_picture(groupDOM, picUrl) {
+        var imgDOM = ui_find_or_instantiate_group_picture(groupDOM);
+		console.log("ui_update_group_picture() "+JSON.stringify(picUrl));
+        $(imgDOM).attr('src', picUrl);
+    }
+    /*************************************************************************
+     *************************************************************************/
+
+
+    /*************************************************************************
+     * MEMBER SECTION
+     *************************************************************************/
+    function ui_set_member_data(memberDOM, memberData) {
+        $(memberDOM).data('member', memberData);
+    }
+
+    function ui_get_member_data(memberDOM) {
+        return $(memberDOM).data('member');
+    }
+
+    function ui_set_member_click(memberDOM, callback) {
+        var memberData = ui_get_member_data(memberDOM);
+        var memberId = 'member-'+memberData['id'];
+        $('#'+memberId).bind('click', callback);
+    }
+
+    function ui_click_member(event) {
+        var memberData = $(this).data('member');
+        console.log("Clicked on ["+memberData['name']+"]");
+    }
+
+    function ui_instantiate_member(memberData) {
+        var memberDOM;
+        var memberId = 'member-'+memberData['id'];
+        $('#memberContainer').append('<div id="'+memberId+'"><br>'+memberData['name']+'</div>');
+        memberDOM = $('#'+memberId);
+        ui_set_member_data(memberDOM, memberData);
+        ui_set_member_click(memberDOM, ui_click_member);
+
+        if ('picture' in memberData) {
+            ui_update_member_picture(memberDOM, memberData['picture']);
+        } else {
+            console.log("picture entry not found");
+        }
+    }
+
+    function ui_find_or_instantiate_member_picture(memberDOM) {
+        var memberData = $(memberDOM).data('member');
+        var imgDOMArray = $(memberDOM).find('img');
+        var imgDOM;
+        if ($(imgDOMArray).length == 0) {
+            $(memberDOM).prepend('<img src="">');
+            imgDOMArray = $(memberDOM).find('img');
+        }
+        imgDOM = imgDOMArray.first();
+        return imgDOM;
+    }
+
+    function ui_update_member_picture(memberDOM, picUrl) {
+        var imgDOM = ui_find_or_instantiate_member_picture(memberDOM);
+        $(imgDOM).attr('src', picUrl);
+    }
+
+    /*************************************************************************
+     *************************************************************************/
+
+    function do_connected_operations() {
+        /*
+         * 1a. refresh groups
+         * 1b. draw
+         * 2a. refresh associated picture
+         * 2b. draw
+         * 3. trigger the clicking of the first group
+         */
+        // 1a.
+        FC.request_groups(function(groups) {
+            $.each(groups, function(index, group) {
+                // 2a. 
+                FC.request_member_picture(group['id'], function(picUrl) {
+                    var groupDOM;
+                    // setup 2b.
+                    group['picture'] = picUrl;
+                    // 1b. 2b.
+                    groupDOM = ui_instantiate_group(group);
+                    // 3.
+                    if (index == 0) {
+                        $(groupDOM).trigger('click');
+                    }
+                });
+            });
+        });
+    }
+
+    window.fbAsyncInit = function() {
+        FB.init({
+          appId      : '287472977939753', // App ID
+          channelUrl : '//'+gConf['baseUrl']+'/channel.html', // Channel File
+          status     : true, // check login status
+          cookie     : true, // enable cookies to allow the server to access the session
+          xfbml      : true  // parse XFBML
+        });
+
+        $('#loginButton').bind('click', function(event) {
+            do_fb_login('user_groups', function(response) {
+                return;
+            });
+        });
+        $('#logoutButton').bind('click', click_fb_logout);
+
+        //fb_register_session();
+
+        FB.getLoginStatus(function(response) {
+            if (response.status == 'connected') {
+                console.log("Connected");
+                do_connected_operations();
+            } else if (response.status == 'not_authorized') {
+                console.log("Not authorized");
+            } else {
+                FB.Event.subscribe('auth.login', function(response) {
+                    do_connected_operations();
+                });
+            }
+        });
+
+        FB.Event.subscribe('auth.login', function(response) {
+            do_connected_operations();
+        });
+
+
+        // Additional initialization code here
+    };
+
+
+    // Load the SDK Asynchronously
+    (function(d){
+        var js, id = 'facebook-jssdk'; if (d.getElementById(id)) {return;}
+        js = d.createElement('script'); js.id = id; js.async = true;
+        js.src = "//connect.facebook.net/en_US/all.js";
+        d.getElementsByTagName('head')[0].appendChild(js);
+    }(document));
+
+    $(document).ready(function() {
+
+    });
+</script>
+</head>
+
+<body>
+<input type="button" id="loginButton" value="Login" />
+<input type="button" id="logoutButton" value="Logout" />
+<input type="button" id="stream" value="stream" />
+<br>
+Groups: <div id="groupContainer"></div>
+<br>
+Members: <div id="memberContainer"></div>
+</body>
+</html>
