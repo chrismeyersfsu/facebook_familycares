@@ -17,4 +17,4 @@ http://127.0.0.1:8080/index.html
 <img src="screenshots/facebook_groups_and_members.png" />
 <p align="center">Members of the "Pap" group are gotten and shown.</p>
 <img src="screenshots/facebook_groups_and_members_2.png" />
-<center>Members of "Grandma Mary" are shown when clicked on</center>
+<p align="center">Members of "Grandma Mary" are shown when clicked on.</p>
